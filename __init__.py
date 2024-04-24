@@ -45,7 +45,7 @@ plugin_info = {
     'description': 'Plugin para generar documentos a partir de metadatos usando plantillas predefinidas.',
     'version': '0.1',
     'author': 'Néstor Andrés Peña',
-    'type': ['bulk'],
+    'type': ['settings'],
     'settings': {
         'settings': [
 
