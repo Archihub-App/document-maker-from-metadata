@@ -4,15 +4,20 @@ from flask import request
 from app.utils import DatabaseHandler
 from app.api.records.models import RecordUpdate
 from celery import shared_task
+from app.api.users.services import has_role
 import os
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
+
+from app.api.types.services import get_all as get_all_types
 
 load_dotenv()
 
 mongodb = DatabaseHandler.DatabaseHandler()
 WEB_FILES_PATH = os.environ.get('WEB_FILES_PATH', '')
 ORIGINAL_FILES_PATH = os.environ.get('ORIGINAL_FILES_PATH', '')
+plugin_path = os.path.dirname(os.path.abspath(__file__))
+template_path = os.path.join(plugin_path, 'templates')
 
 class ExtendedPluginClass(PluginClass):
     def __init__(self, path, import_name, name, description, version, author, type, settings):
@@ -36,6 +41,78 @@ class ExtendedPluginClass(PluginClass):
             
             return {'msg': 'Se agregó la tarea a la fila de procesamientos'}, 201
         
+    def get_settings(self):
+        @self.route('/settings/<type>', methods=['GET'])
+        @jwt_required()
+        def get_settings(type):
+            try:
+                current_user = get_jwt_identity()
+
+                if not has_role(current_user, 'admin') and not has_role(current_user, 'processing'):
+                    return {'msg': 'No tiene permisos suficientes'}, 401
+                
+                types = get_all_types()
+                if isinstance(types, list):
+                    types = tuple(types)[0]
+
+                current = self.get_plugin_settings()
+
+                resp = {**self.settings}
+
+                template_folders = os.listdir(template_path)
+                
+                if current is None:
+                    resp['settings'][0]['fields'].append({
+                        'type': 'item_array',
+                        'fields': [
+                            {
+                                'type': 'select',
+                                'id': 'type',
+                                'default': '',
+                                'options': [{'value': t['slug'], 'label': t['name']} for t in types],
+                                'required': True
+                            },
+                            {
+                                'type': 'select',
+                                'id': 'template',
+                                'default': '',
+                                'options': [{'value': t, 'label': t} for t in template_folders],
+                                'required': True
+                            }
+                        ]
+                    })
+                else:
+                    for i, t in enumerate(current):
+                        resp['settings'][0]['fields'].append({
+                            'type': 'item_array',
+                            'fields': [
+                                {
+                                    'type': 'select',
+                                    'id': 'type',
+                                    'default': t['type'],
+                                    'options': [{'value': t['slug'], 'label': t['name']} for t in types],
+                                    'required': True
+                                },
+                                {
+                                    'type': 'select',
+                                    'id': 'template',
+                                    'default': t['template'],
+                                    'options': [{'value': t, 'label': t} for t in template_folders],
+                                    'required': True
+                                }
+                            ]
+                        })
+
+                
+                if type == 'all':
+                    return resp
+                elif type == 'settings':
+                    return resp['settings']
+                else:
+                    return resp['settings_' + type]
+            except Exception as e:
+                return {'msg': str(e)}, 500
+        
     @shared_task(ignore_result=False, name='documentMakerMetadata.bulk')
     def bulk(body, user):
         pass        
@@ -45,10 +122,14 @@ plugin_info = {
     'description': 'Plugin para generar documentos a partir de metadatos usando plantillas predefinidas.',
     'version': '0.1',
     'author': 'Néstor Andrés Peña',
-    'type': ['settings'],
+    'type': ['settings', 'bulk'],
     'settings': {
         'settings': [
-
+            {
+                'type': 'multiple',
+                'title': 'Tipos de contenido a generar',
+                'fields': []
+            }
         ],
         'settings_bulk': [
             {
