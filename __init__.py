@@ -62,46 +62,31 @@ class ExtendedPluginClass(PluginClass):
                 template_folders = os.listdir(template_path)
                 
                 if current is None:
-                    resp['settings'][0]['fields'].append({
-                        'type': 'item_array',
-                        'fields': [
-                            {
-                                'type': 'select',
-                                'id': 'type',
-                                'default': '',
-                                'options': [{'value': t['slug'], 'label': t['name']} for t in types],
-                                'required': True
-                            },
-                            {
-                                'type': 'select',
-                                'id': 'template',
-                                'default': '',
-                                'options': [{'value': t, 'label': t} for t in template_folders],
-                                'required': True
-                            }
-                        ]
-                    })
+                    resp['settings'][1]['default'] = []
+                    resp['settings'][1]['fields'] = [
+                        {
+                            'type': 'select',
+                            'id': 'type',
+                            'default': '',
+                            'options': [{'value': t['slug'], 'label': t['name']} for t in types],
+                            'required': True
+                        },
+                        {
+                            'type': 'select',
+                            'id': 'template',
+                            'default': '',
+                            'options': [{'value': t, 'label': t} for t in template_folders],
+                            'required': True
+                        },
+                        {
+                            'type': 'number',
+                            'id': 'order',
+                            'default': 0,
+                            'required': True
+                        }
+                    ]
                 else:
-                    for i, t in enumerate(current):
-                        resp['settings'][0]['fields'].append({
-                            'type': 'item_array',
-                            'fields': [
-                                {
-                                    'type': 'select',
-                                    'id': 'type',
-                                    'default': t['type'],
-                                    'options': [{'value': t['slug'], 'label': t['name']} for t in types],
-                                    'required': True
-                                },
-                                {
-                                    'type': 'select',
-                                    'id': 'template',
-                                    'default': t['template'],
-                                    'options': [{'value': t, 'label': t} for t in template_folders],
-                                    'required': True
-                                }
-                            ]
-                        })
+                    resp['settings'] = current
 
                 
                 if type == 'all':
@@ -126,8 +111,14 @@ plugin_info = {
     'settings': {
         'settings': [
             {
+                'type': 'instructions',
+                'title': 'Instrucciones',
+                'text': 'Este plugin permite generar documentos a partir de metadatos usando plantillas predefinidas. Para configurar el plugin, seleccione el tipo de contenido y la plantilla a usar. Estos documentos se generarán al crear o actualizar un registro con el tipo de contenido seleccionado en el gestor documental.',
+            },
+            {
                 'type': 'multiple',
                 'title': 'Tipos de contenido a generar',
+                'id': 'types_activation',
                 'fields': []
             }
         ],
